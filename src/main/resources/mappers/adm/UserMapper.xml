@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dou.adm.mappers.UserMapper">
+
+    <resultMap id="UserMap" type="User">
+        <id column="ID" property="id"/>
+        <result column="ACCOUNTID" property="accountId"/>
+        <result column="PASSWORD" property="password"/>
+        <result column="ISBLOCKED" property="isBlocked"/>
+        <result column="ISDELETED" property="isDeleted"/>
+        <result column="ISSTATUS" property="isStatus"/>
+        <result column="ISADMIN" property="isAdmin"/>
+        <result column="GROUPUSER_ID" property="groupId"/>
+        <result column="DEPARTMENT_ID" property="departmentId"/>
+        <result column="TABLE" property="targetProfileTable"/>
+    </resultMap>
+
+    <resultMap id="PermissionsMap" type="Permission">
+        <result column="NAME" property="featureName"/>
+        <result column="URL" property="featureUrl"/>
+        <result column="BUTTONCODEID" property="btnId"/>
+        <result column="HIDDENFIELDID" property="hiddenFieldId"/>
+    </resultMap>
+
+    <resultMap id="UserProfile" type="UserProfiles">
+        <result column="ID" property="id"/>
+        <result column="ACCOUNTID" property="accountId"/>
+        <result column="MAFCCODE" property="mafcCode"/>
+        <result column="DRSCODE" property="drsCode"/>
+        <result column="FULLNAME" property="fullname"/>
+        <result column="EMAIL" property="email"/>
+        <result column="PHONE" property="phone"/>
+        <result column="MOBILE" property="mobile"/>
+        <result column="POSITIONCOMPANYID" property="positionCompanyId"/>
+        <result column="BRANCHID" property="branchId"/>
+        <result column="AREA" property="area"/>
+        <result column="DEPARTMENTID" property="departmentId"/>
+        <result column="GROUP" property="group"/>
+        <result column="TEAM" property="team"/>
+        <result column="JOININGDATE" property="joiningDate"/>
+        <result column="ENDDATE" property="endDate"/>
+        <result column="CREATEDDATE" property="createdDate"/>
+        <result column="MODIFIEDDATE" property="modifiedDate"/>
+        <result column="DELETEDDATE" property="deletedDate"/>
+        <result column="CREATEDBY" property="createdBy"/>
+        <result column="MODIFIEDBY" property="modifiedBy"/>
+        <result column="DELETEDBY" property="deletedBy"/>
+        <result column="LEVEL" property="level"/>
+        <result column="PERSONALID" property="personalId"/>
+        <result column="STAFFTYPE" property="staffType"/>
+        <result column="USERTYPE" property="staffType"/>
+        <result column="SUPERVISORID" property="superVisorId"/>
+        <result column="STATUS" property="status"/>
+        <result column="ISADMIN" property="isAdmin"/>
+        <result column="ISDELETED" property="isDeleted"/>
+        <result column="DEPARTMENT_NM" property="departmentNm"/>
+    </resultMap>
+
+    <select id="loginUser" resultMap="UserMap">
+        SELECT
+            A.ID,
+            A.ACCOUNTID,
+            A.PASSWORD,
+            A.ISBLOCKED,
+            A.ISDELETED,
+            A.ISSTATUS,
+            A.ISADMIN,
+            A.GROUPUSER_ID,
+            A.DEPARTMENT_ID,
+            (SELECT D.TABLE FROM MAACC.DEPARTMENT D WHERE D.DEPARTMENT_ID = A.DEPARTMENT_ID)
+        FROM    MAACC.ACCOUNTINFO A
+        WHERE   UPPER(A.ACCOUNTID) = UPPER(#{accountId})
+
+    </select>
+
+    <select id="getInfoPerMissionByAccount" resultMap="PermissionsMap">
+        SELECT F.NAME, F.URL
+        FROM    MAACC.FEATURE F,
+                MAACC.GROUPFEATURE GF
+        WHERE 	GF.FEATUREID = F.CODEID
+            AND GF.GROUPID IN (
+                    SELECT AG.GROUPID
+                    FROM MAACC.ACCOUNTPERMISSIONGROUPFEATURE AG, MAACC.GROUP G
+                    WHERE	AG.GROUPID = G.CODEID
+                        AND G.APPLICATION = 'DMT'
+                        AND UPPER(AG.ACCOUNTID) = #{accountId}
+                )
+    </select>
+
+    <select id="retrieveUserProfile" resultMap="UserProfile">
+        SELECT ID,
+            FULLNAME,
+            ACCOUNTID,
+            MAFCCODE,
+            EMAIL,
+            PHONE,
+            MOBILE,
+            POSITIONCOMPANYID,
+            ISDELETED,
+            BRANCHID,
+            DEPARTMENTID,
+            CREATEDDATE,
+            MODIFIEDDATE,
+            DELETEDDATE,
+            CREATEDBY,
+            MODIFIEDBY,
+            DELETEDBY,
+            LEVEL,
+            SUPERVISORID,
+            ISADMIN,
+            STAFFTYPE,
+            GROUP,
+            TEAM,
+            AREA,
+            PERSONALID,
+            STATUS,
+            JOININGDATE,
+            (SELECT NAME FROM MAACC.DEPARTMENT B WHERE A.DEPARTMENTID = B.DEPARTMENT_ID) DEPARTMENT_NM
+        FROM MAACC."${table}" A
+        WHERE UPPER(A.ACCOUNTID) = UPPER(#{accountId})
+    </select>
+
+    <!--- update password -->
+    <update id="changePassword"  >
+        UPDATE MAACC.ACCOUNTINFO
+        SET PASSWORD =  #{password}
+        WHERE ACCOUNTID = #{accountId}
+    </update>
+
+    <select id="lsAccSubervisor" resultType="string">
+        SELECT ACCOUNTID
+        FROM MAACC.${table}
+        START WITH SUPERVISORID = #{supervisor}
+        CONNECT BY PRIOR ACCOUNTID = SUPERVISORID
+    </select>
+
+    <select id="managerLevel" resultType="int">
+        SELECT COUNT(*)
+        FROM MAFCDB.DMT_STAFF_BRANCHSIP
+        WHERE 1= 1
+        <if test="staffCd != ''">
+            AND STAFF_CD = #{staffCd}
+        </if>
+    </select>
+    <select id="ListBranchSip" resultType="string">
+        SELECT BRANCHSIP_CD
+        FROM MAFCDB.DMT_STAFF_BRANCHSIP
+        WHERE 1= 1
+        <if test="staffCd != ''">
+            AND STAFF_CD = #{staffCd}
+        </if>
+    </select>
+</mapper>

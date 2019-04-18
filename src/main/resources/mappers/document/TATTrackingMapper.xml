@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dou.document.mappers.TATTrackingMapper">
+    <resultMap id="ViewAll" type="TATTracking">
+        <result column="AgreeID" property="agreeId"></result>
+        <result column="DATAENTRY" property="dataEntry"></result>
+        <result column="PDOCDATE" property="pdocDt"></result>
+        <result column="FINISHDATE" property="finishDt"></result>
+        <result column="F1Status" property="f1Sts"></result>
+        <result column="cif_no" property="idNo"></result>
+    </resultMap>
+
+    <select id="getDataF1" resultMap="ViewAll" parameterType="map">
+        SELECT A.APP_ID_C AgreeID,
+        A.CREATED_BY DATAENTRY,
+        (SELECT h.laah_edit_d
+        FROM MACAS.los_app_status_history h
+        WHERE h.app_id_c          = A.APP_ID_C
+        AND h.laah_status         = 'S'
+        AND h.laah_la_activity_id = 'PDOC'
+        AND rownum                = 1
+        ) PDOCDATE,
+        (SELECT s.las_edit_d
+        FROM MACAS.los_app_status s
+        WHERE s.app_id_c      = A.APP_ID_C
+        AND s.las_activity_id ='FINISH'
+        AND rownum            = 1
+        ) FINISHDATE,
+        (SELECT s.las_activity_id
+        FROM MACAS.los_app_status s
+        WHERE s.app_id_c = A.APP_ID_C
+        AND s.las_id_n  >=
+        (SELECT MAX(las_id_n) FROM MACAS.los_app_status s1 WHERE s1.app_id_c = s.app_id_c
+        )
+        ) F1Status,b.cif_no
+        FROM MACAS.Los_App_Applications A, MACAS.nbfc_customer_m b,  macas.los_app_status c
+        WHERE 1= 1
+        AND  a.cust_id_n    = b.cust_id_n (+)
+        AND c.app_id_c = a.app_id_c
+        <!--AND a.created_by = 'MASTER01'-->
+        <if test="baseOnStep == 'POS' or baseOnStep == 'PDOC' or baseOnStep == 'FINISH'">
+            AND c.LAS_ACTIVITY_ID = #{baseOnStep}
+            <if test="fromDt != '' and toDt != ''">
+                AND TO_CHAR(c.LAS_EDIT_D,'YYYY-MM-DD') BETWEEN #{fromDt} and #{toDt}
+            </if>
+        </if>
+        <if test="listdata.size() >0 ">
+            AND a.app_id_c in
+            <foreach item="items" index="index" collection="listdata" open="(" separator="," close=")">
+                #{items.app_id_BD2}
+            </foreach>
+        </if>
+    </select>
+
+
+
+    <resultMap id="DB2" type="TATTracking">
+        <result column="APP_ID" property="app_id_BD2"></result>
+        <result column="UPLOAD_DT" property="uploadDt"></result>
+        <result column="RECEIVED_DT" property="receivedDt"/>
+        <result column="DISTRIBUTED_DT" property="distributedDt"/>
+        <result column="LASTMODIFIED_DT" property="lastModified"/>
+        <result column="STATUS_CD" property="documentSts"/>
+        <result column="CUSTOMER_NAME" property="customerNm"/>
+        <result column="ID_NO" property="idNo"/>
+        <result column="PRODUCT_NAME" property="productNm"/>
+        <result column="SALES_CODE" property="salesCd"/>
+        <result column="BRANCH_NAME" property="branchSip"/>
+        <result column="DISTRIBUTE_CSR" property="distributedBy"/>
+    </resultMap>
+
+    <select id="getDataDB2" resultMap="DB2" parameterType="map">
+        WITH upload as (select MAX(B.CREATED_DATE) UPLOAD_DT, B.STATUS_CD, A.DOCUMENT_CD
+            from DMT_DOCUMENTS A, DMT_DOCUMENTS_STATUS B
+            WHERE A.DOCUMENT_CD = B.DOCUMENT_CD
+            AND B.STATUS_CD = 'Upload' GROUP BY B.STATUS_CD, A.DOCUMENT_CD ) ,
+            received as (select MAX(B.CREATED_DATE) RECEIVED_DT, B.STATUS_CD, A.DOCUMENT_CD
+            from DMT_DOCUMENTS A, DMT_DOCUMENTS_STATUS B
+            WHERE A.DOCUMENT_CD = B.DOCUMENT_CD
+            AND B.STATUS_CD = 'RECEIVED' GROUP BY B.STATUS_CD, A.DOCUMENT_CD  ),
+            distributed as (select MAX(B.CREATED_DATE) DISTRIBUTED_DT, B.STATUS_CD, A.DOCUMENT_CD
+            from DMT_DOCUMENTS A, DMT_DOCUMENTS_STATUS B
+            WHERE A.DOCUMENT_CD = B.DOCUMENT_CD
+            AND B.STATUS_CD = 'DISTRIBUTED' GROUP BY B.STATUS_CD, A.DOCUMENT_CD  ),
+            lastmodified as (select MAX(B.CREATED_DATE) LASTMODIFIED_DT, B.STATUS_CD, A.DOCUMENT_CD
+            from DMT_DOCUMENTS A, DMT_DOCUMENTS_STATUS B
+            WHERE A.DOCUMENT_CD = B.DOCUMENT_CD
+            AND B.STATUS_CD = 'MODIFIED' GROUP BY B.STATUS_CD, A.DOCUMENT_CD  ),
+            defer as (select MAX(B.CREATED_DATE) DEFER_DT, B.STATUS_CD, A.DOCUMENT_CD
+            from DMT_DOCUMENTS A, DMT_DOCUMENTS_STATUS B
+            WHERE A.DOCUMENT_CD = B.DOCUMENT_CD
+            AND B.STATUS_CD = 'MODIFIED' GROUP BY B.STATUS_CD, A.DOCUMENT_CD  )
+        SELECT  f.APP_ID, a.UPLOAD_DT,  b.RECEIVED_DT,c.DISTRIBUTED_DT,d.LASTMODIFIED_DT,f.CUSTOMER_NAME,f.ID_NO, f.PRODUCT_NAME, f.SALES_CODE,f.BRANCH_NAME,f.STATUS_CD, f.DISTRIBUTE_CSR
+        FROM  upload a,received b, distributed c, lastmodified d, DMT_DOCUMENTS f,defer g
+        WHERE 1 = 1
+            AND f.DOCUMENT_CD = b.DOCUMENT_CD (+)
+            and  f.DOCUMENT_CD = c.DOCUMENT_CD (+)
+            and f.DOCUMENT_CD = d.DOCUMENT_CD (+)
+            and f.DOCUMENT_CD = a.DOCUMENT_CD (+)
+            and f.DOCUMENT_CD = g.DOCUMENT_CD (+)
+            <if test="idNo != ''">
+                AND f.ID_NO = #{idNo}
+            </if>
+            <if test="documentSts != ''">
+                AND f.STATUS_CD = #{documentSts}
+            </if>
+
+            <if test="baseOnStepData == 'UPLOAD' or baseOnStepData == 'RECEIVED'">
+                AND f.STATUS_CD = #{baseOnStepData}
+                <if test="dtFromDB2 != null and dtToDB2 != null">
+                    AND DATE(f.CREATED_DATE) BETWEEN #{dtFromDB2} and #{dtToDB2}
+                </if>
+            </if>
+            <!--Author-->
+            <if test="filtering != null">
+                <choose>
+                    <when test="filtering.author == 'ADMIN_CSR'">
+                        AND (f.DISTRIBUTE_CSR = #{filtering.accountId} OR f.RETRIEVAL_CSR = #{filtering.accountId})
+                        <if test="filtering.lsBranchSip.size() >0 ">
+                            AND f.BRANCH_ID IN
+                            <foreach item="items" index="index" collection="filtering.lsBranchSip" open="(" separator="," close=")">
+                                #{items}
+                            </foreach>
+                        </if>
+                    </when>
+
+                    <when test="filtering.author == 'ADMIN_CHANNEL_SALES'">
+                        <!--AND f.SALES_CODE = #{userlogin}-->
+                        <if test="filtering.departmentId != null">
+                            AND f.CHANNEL_ID = #{filtering.departmentId}
+                        </if>
+                    </when>
+
+                    <when test="filtering.author == 'USER_OF_MANAGER_LEVEL'">
+                        <if test="filtering.lsBranchSip.size() >0">
+                            AND f.BRANCH_ID IN
+                            <foreach item="items" index="index" collection="filtering.lsBranchSip" open="(" separator="," close=")">
+                                #{items}
+                            </foreach>
+                        </if>
+                    </when>
+
+                    <when test="filtering.author == 'USER_OF_CHANNEL_SALES'">
+                        <if test="filtering.lsAcc.size() >0">
+                            AND f.SALES_CODE IN
+                            <foreach item="items" index="index" collection="filtering.lsAcc" open="(" separator="," close=")">
+                                #{items}
+                            </foreach>
+                        </if>
+                    </when>
+
+                    <when test="filtering.author == 'USER_OF_CSR'">
+                        AND (f.SALES_CODE  = #{filtering.accountId}
+                        AND f.CHANNEL_ID = #{filtering.departmentId}
+                        OR f.PARTNER = 1
+                        OR (f.DISTRIBUTE_CSR = #{filtering.accountId}
+                        OR f.RETRIEVAL_CSR = #{filtering.accountId}))
+                    </when>
+                </choose>
+            </if>
+    </select>
+
+
+    <resultMap id="homeData" type="TATTracking">
+        <result column="PEND_DATE" property="pendingDt"></result>
+        <result column="UND_DATE" property="undDt"></result>
+        <result column="ID_NO" property="idNo"></result>
+    </resultMap>
+
+    <select id="getDataHome" resultMap="homeData" parameterType="java.util.List">
+        SELECT  PEND_DATE,UND_DATE,ID_NO
+        FROM "UND_record"  WHERE 1 = 1
+        <if test="baseOnStep == 'PENDING' or baseOnStep == 'UND'">
+            AND PEND_DATE = #{fromDtHome}
+        </if>
+        <if test = "baseOnStep == 'UND'">
+            AND UND_DATE = #{toDtHome}
+        </if>
+        AND ID_NO in
+        <foreach item="items" index="index" collection="listParamF1" open="(" separator="," close=")">
+            #{items.idNo}
+        </foreach>
+    </select>
+
+    <resultMap id="documentSts" type="DocumentSts">
+        <result column="STATUS_DMT_CD" property="statusCd"></result>
+        <result column="STATUS_DMT_NM" property="statusNm"></result>
+    </resultMap>
+
+    <select id="getDocumentSts" resultMap="documentSts">
+        SELECT STATUS_DMT_CD, STATUS_DMT_NM
+        FROM DMT_STATUS
+        WHERE 1 = 1
+        AND STATUS_DMT_CD in ('PASS','RECEIVED','MODIFIED','DISTRIBUTED','DEFER')
+    </select>
+
+</mapper>

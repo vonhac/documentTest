@@ -1,0 +1,63 @@
+*.sw?
+.#*
+*#
+*~
+target
+dependency-reduced-pom.xml
+*.sublime-*
+/scratch
+README.html
+
+
+### Original ###
+.gradle
+/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.metadata
+.springBeans
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+.DS_Store
+
+/bin/
+.vscode
+
+### Maven ###
+mvnw
+mvnw.cmd
+out/
+pom.xml
+.mvn/
+
+###Build Files###
+src/main/resources/public
+classes/
+src/main/public
+
+###FRONT_END###
+front-end/yarn.lock
+front-end/yarn-error.log
+front-end/package-lock.json
+front-end/node_modules
+src/main/resources/public
+

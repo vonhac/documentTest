@@ -1,0 +1,443 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dou.document.mappers.DmtDocumentMapper">
+	<!--******************************-->
+	<!--*        SQL STATEMENTS       *-->
+	<!--*       Import Document	      *-->
+	<!--******************************-->
+    <resultMap id="DocumentModel" type="TraInfoModel">
+        <result column="DOCUMENT_CD" property="documentCd"/>
+        <result column="ID_NO" property="idNo"/>
+        <result column="CUSTOMER_ID" property="customerId"/>
+        <result column="CUSTOMER_NAME" property="customerNm"/>
+        <result column="PRODUCT_ID" property="productId"/>
+        <result column="PRODUCT_NAME" property="productNm"/>
+        <result column="MANAGER" property="manager"/>
+        <result column="SALES_CODE" property="salesCd"/>
+        <result column="SALES_NAME" property="salesNm"/>
+        <result column="SALES_CHANNEL" property="salesChnl"/>
+        <result column="DISTRIBUTE_CSR" property="distributeCsr"/>
+        <result column="INVALID_DESCRIPTION" property="invalidDescription"/>
+        <result column="TYPE" property="type"/>
+        <result column="STATUS" property="status"/>
+        <result column="STATUS_CD" property="statusCd"/>
+        <result column="STATUS_DATE_CURRENT" property="statusDateCurrent"/>
+        <result column="DESCRIPTION" property="description"/>
+        <result column="CSR_CODE" property="csr_code"/>
+        <result column="SEND_DATE" property="send_date"/>
+        <result column="DISTRIBUTED_DATE" property="distributedDate"/>
+        <result column="BRANCH_ID" property="branchId"/>
+        <result column="BRANCH_NAME" property="branchNm"/>
+        <result column="RETRIEVAL_CSR" property="retrievalCsr"/>
+        <result column="NOTE_BPO" property="noteBpo"/>
+        <result column="CREATED_BY" property="createdBy"/>
+        <result column="RECEIVE_BY" property="receivedBy"/>
+        <result column="MODIFIED_BY" property="modifiedBy"/>
+        <result column="CREATED_DATE" property="createdDate"/>
+        <result column="MODIFIED_DATE" property="modifiedDate"/>
+		<result column="RECEIVED_DATE" property="receivedDate"/>
+		<result column="RECEIVED_DATE1" property="receivedDate1"/>
+		<result column="PARTNER" property="partner"/>
+        <result column="BPO_CHECK" property="bpoCheck"/>
+        <result column="DEADLINE" property="deadline"/>
+    </resultMap>
+
+		<select id="searchDmtDocumentModel" resultMap="DocumentModel" parameterType="DmtDocumentSearchModel">
+			SELECT
+			*,
+				(SELECT status.STATUS_DMT_NM
+				FROM MAFCDB.DMT_STATUS status
+				WHERE status.STATUS_DMT_CD = docmt.STATUS_CD) as STATUS,
+				(CASE
+				WHEN STATUS_CD = 'INVALID' THEN (SELECT docstatus.DESCRIPTION
+				FROM MAFCDB.DMT_DOCUMENTS_STATUS docstatus INNER JOIN MAFCDB.DMT_STATUS status
+				ON  docstatus.STATUS_CD = status.STATUS_DMT_CD
+				WHERE docstatus.DOCUMENT_CD = docmt.DOCUMENT_CD
+				ORDER BY docstatus.CREATED_DATE DESC
+				FETCH FIRST 1 ROWS ONLY)
+				ELSE ''
+				END) as INVALID_DESCRIPTION
+			FROM
+				MAFCDB.DMT_DOCUMENTS docmt
+			WHERE 1 = 1
+			<if test="idNo != null and idNo.length() > 0">
+				AND docmt.ID_NO = UPPER(#{idNo})
+			</if>
+			<if test="salesCd != null and salesCd.length() > 0">
+				AND docmt.SALES_CODE = UPPER(#{salesCd})
+			</if>
+			<if test="statusCd != null and statusCd.length() > 0">
+				AND docmt.STATUS_CD = UPPER(#{statusCd})
+			</if>
+			<if test="statusCd == null or statusCd.length() == 0">
+				AND docmt.STATUS_CD IN ('ORIGINAL', 'VALID', 'INVALID', 'SENDING')
+			</if>
+			<if test="createdDateSearch != null">
+				AND TRUNC(docmt.CREATED_DATE,'DD/MM/YYYY') = #{createdDateSearch}
+			</if>
+			<if test="branchId != null and branchId.length() > 0">
+				AND docmt.BRANCH_ID = #{branchId}
+			</if>
+
+			<if test="filtering != null">
+				<choose>
+					<when test="filtering.author == 'ADMIN_CSR' or  filtering.author == 'USER_OF_MANAGER_LEVEL' ">
+						<if test="filtering.lsBranchSip.size() > 0">
+							AND ( docmt.BRANCH_ID IN
+							<foreach item="items" index="index" collection="filtering.lsBranchSip" open="(" separator="," close=")">
+								#{items}
+							</foreach>
+							OR ( docmt.SALES_CODE  = #{filtering.accountId} OR docmt.PARTNER = 1))
+						</if>
+
+					</when>
+
+					<when test="filtering.author == 'ADMIN_CHANNEL_SALES'">
+						<if test="filtering.departmentId != null || filtering.departmentId != ''">
+							AND docmt.CHANNEL_ID = #{filtering.departmentId}
+						</if>
+					</when>
+
+					<when test="filtering.author == 'USER_OF_CHANNEL_SALES'">
+						<if test="filtering.lsAcc != null || filtering.lsAcc != ''">
+							AND docmt.SALES_CODE IN
+							<foreach item="items" index="index" collection="filtering.lsAcc" open="(" separator="," close=")">
+								#{items}
+							</foreach>
+						</if>
+					</when>
+
+					<when test="filtering.author == 'USER_OF_CSR'">
+						AND( docmt.BRANCH_ID = #{filtering.branchSip}
+						OR( docmt.SALES_CODE  = #{filtering.accountId} OR docmt.PARTNER = 1))
+					</when>
+				</choose>
+			</if>
+		</select>
+
+		<select id="searchDocumentByIdNo" resultMap="DocumentModel" parameterType="map">
+			SELECT
+			*,
+			(SELECT status.STATUS_DMT_NM
+			FROM MAFCDB.DMT_STATUS status
+			WHERE status.STATUS_DMT_CD = docmt.STATUS_CD) as STATUS,
+			(CASE
+			WHEN STATUS_CD = 'INVALID' THEN (SELECT docstatus.DESCRIPTION
+			FROM MAFCDB.DMT_DOCUMENTS_STATUS docstatus INNER JOIN MAFCDB.DMT_STATUS status
+			ON  docstatus.STATUS_CD = status.STATUS_DMT_CD
+			WHERE docstatus.DOCUMENT_CD = docmt.DOCUMENT_CD
+			ORDER BY docstatus.CREATED_DATE DESC
+			FETCH FIRST 1 ROWS ONLY)
+			ELSE ''
+			END) as INVALID_DESCRIPTION
+			FROM
+			MAFCDB.DMT_DOCUMENTS docmt
+			WHERE 1 = 1
+			AND docmt.ID_NO = UPPER(#{idNo})
+			ORDER BY docmt.CREATED_DATE DESC
+		</select>
+
+		<select id="searchDocumentByDMT" resultMap="DocumentModel" parameterType="map">
+			SELECT
+			*,
+			(SELECT status.STATUS_DMT_NM
+			FROM MAFCDB.DMT_STATUS status
+			WHERE status.STATUS_DMT_CD = docmt.STATUS_CD) as STATUS,
+			(CASE
+			WHEN STATUS_CD = 'INVALID' THEN (SELECT docstatus.DESCRIPTION
+			FROM MAFCDB.DMT_DOCUMENTS_STATUS docstatus INNER JOIN MAFCDB.DMT_STATUS status
+			ON  docstatus.STATUS_CD = status.STATUS_DMT_CD
+			WHERE docstatus.DOCUMENT_CD = docmt.DOCUMENT_CD
+			ORDER BY docstatus.CREATED_DATE DESC
+			FETCH FIRST 1 ROWS ONLY)
+			ELSE ''
+			END) as INVALID_DESCRIPTION
+			FROM
+			MAFCDB.DMT_DOCUMENTS docmt
+			WHERE 1 = 1
+			AND docmt.DOCUMENT_CD = #{documentCd}
+		</select>
+
+		<insert id="addDmtDocumentModel" parameterType="com.dou.document.models.TraInfoModel" useGeneratedKeys="true" keyProperty="documentCd">
+			INSERT INTO MAFCDB.DMT_DOCUMENTS
+			(ID_NO,
+			CUSTOMER_NAME,
+			PRODUCT_ID,
+			PRODUCT_NAME,
+			SALES_CODE,
+			SALES_NAME,
+			SALES_CHANNEL,
+			BRANCH_ID,
+			MANAGER,
+			CHANNEL_ID,
+			BRANCH_NAME,
+			CREATED_BY,
+			MODIFIED_BY,
+			CREATED_DATE,
+			MODIFIED_DATE,
+			STATUS_CD,
+			STATUS_DATE_CURRENT,
+			PARTNER
+			) VALUES (
+			#{idNo},
+			#{customerNm},
+			UPPER(#{productId}),
+			#{productNm},
+			UPPER(#{salesCd}),
+			#{salesNm},
+			UPPER(#{salesChnl}),
+			UPPER(#{branchId}),
+			#{manager},
+			UPPER(#{channelId}),
+			#{branchNm},
+			#{createdBy},
+			#{modifiedBy},
+			#{createdDate},
+			#{modifiedDate},
+			UPPER(#{statusCd}),
+			#{statusDateCurrent},
+			#{partner})
+		</insert>
+
+
+
+		<update id="updateDmtDocument" parameterType="com.dou.document.models.TraInfoModel">
+			update MAFCDB.DMT_DOCUMENTS
+			set
+				ID_NO = #{idNo},
+				CUSTOMER_NAME = #{customerNm},
+				PRODUCT_ID = UPPER(#{productId}),
+				PRODUCT_NAME = #{productNm},
+				SALES_CODE = UPPER(#{salesCd}),
+				SALES_NAME = #{salesNm},
+				BRANCH_ID = UPPER(#{branchId}),
+				BRANCH_NAME = #{branchNm},
+				PARTNER = #{partner},
+			<if test="distributeCsr != null">
+				DISTRIBUTE_CSR = UPPER(#{distributeCsr}),
+			</if>
+			<if test="retrievalCsr != null">
+				RETRIEVAL_CSR = UPPER(#{retrievalCsr}),
+			</if>
+			<if test="statusCd != null and statusCd.length() > 0">
+				STATUS_CD = UPPER(#{statusCd}),
+			</if>
+			<if test="statusDateCurrent != null ">
+				STATUS_DATE_CURRENT = #{statusDateCurrent},
+			</if>
+			<if test="deadline != null ">
+				DEADLINE = #{deadline},
+			</if>
+			<if test="receivedFlag != null ">
+				RECEIVE_BY = #{filtering.accountId},
+			</if>
+			MODIFIED_DATE = #{modifiedDate},
+			MODIFIED_BY = #{modifiedBy}
+			where DOCUMENT_CD = #{documentCd}
+		</update>
+
+		<update id="updateDocumentByIdNo" parameterType="com.dou.document.models.TraInfoModel">
+			update MAFCDB.DMT_DOCUMENTS
+			set
+				STATUS_CD = UPPER(#{statusCd}),
+				STATUS_DATE_CURRENT = UPPER(#{statusDateCurrent}),
+				MODIFIED_DATE = #{modifiedDate},
+				MODIFIED_BY = #{modifiedBy}
+			WHERE
+			DOCUMENT_CD =#{documentCd}
+		</update>
+
+		<update id="updateDmtDocumentStatus" parameterType="com.dou.document.models.TraInfoModel">
+			UPDATE MAFCDB.DMT_DOCUMENTS
+			SET BRANCH_ID = UPPER(#{branchId}),
+				BRANCH_NAME = #{branchNm},
+                MODIFIED_BY = #{modifiedBy},
+                MODIFIED_DATE = #{modifiedDate}
+			WHERE DOCUMENT_CD = #{documentCd}
+		</update>
+
+		<delete id="deleteDmtDocument" parameterType="int">
+			DELETE FROM MAFCDB.DMT_DOCUMENTS WHERE DOCUMENT_CD = #{id}
+		</delete>
+
+					<!--******************************-->
+					<!--*        SQL STATEMENTS      *-->
+					<!--*     	CHECK F1		     *-->
+					<!--******************************-->
+		<select id="getResultFromExternalSystem" parameterType="ResultDrsModel" statementType="CALLABLE">
+			{ call getresult_DRS(#{idOrPhone, mode = IN, jdbcType = VARCHAR},
+			#{sum, mode = OUT, jdbcType = INTEGER, javaType = java.lang.Integer})}
+		</select>
+
+
+				<!--******************************-->
+				<!--*        SQL STATEMENTS      *-->
+				<!--*     	 STATUS HISTORY	     *-->
+				<!--******************************-->
+	<resultMap id="DocumentDetailStatusModel" type="DocumentDetailStatusModel">
+		<result column="FILENAME" property="filename"/>
+		<result column="DESCRIPTION" property="description"/>
+		<result column="CREATED_BY" property="createdBy"/>
+		<result column="MODIFIED_BY" property="modifiedBy"/>
+		<result column="CREATED_DATE" property="createdDate"/>
+		<result column="MODIFIED_DATE" property="modifiedDate"/>
+		<result column="STATUS_CD" property="statusCd"/>
+		<result column="DOCUMENT_CD" property="documentCd"/>
+	</resultMap>
+		<insert id="insertDmtDocumentStatus" parameterType="DocumentDetailStatusModel">
+			INSERT INTO MAFCDB.DMT_DOCUMENTS_STATUS
+			(CREATED_BY,
+			CREATED_DATE,
+			STATUS_CD,
+			DOCUMENT_CD,
+			DESCRIPTION) VALUES (
+			#{createdBy},
+			#{createdDate},
+			UPPER(#{statusCd}),
+			#{documentCd},
+			#{description})
+		</insert>
+
+					<!--******************************-->
+					<!--*        SQL STATEMENTS      *-->
+					<!--*       Branch Ship		     *-->
+					<!--******************************-->
+	<resultMap id="BranchModel" type="BranchModel">
+		<result column="BRANCH_ID" property="branchId"/>
+		<result column="NAME" property="branchNm"/>
+		<result column="ADDRESS" property="address"/>
+		<result column="PHONE" property="phone"/>
+		<result column="CITYID" property="cityId"/>
+		<result column="DISTRICTID" property="districtId"/>
+	</resultMap>
+    <select id="getBranchModel" resultMap="BranchModel" parameterType="map">
+        SELECT
+			BRANCH_ID,
+			NAME,
+			ADDRESS,
+			PHONE,
+			CITYID,
+			DISTRICTID
+		FROM
+			MAACC.BRANCH
+		WHERE 1 = 1
+		<if test="branchId != null and branchId.length() > 0">
+			AND BRANCH_ID = UPPER(#{branchId})
+		</if>
+    </select>
+
+
+					<!--******************************-->
+					<!--*        SQL STATEMENTS      *-->
+					<!--*      Document Status       *-->
+					<!--******************************-->
+	<resultMap id="StatusModel" type="DocumentStatusModel">
+		<result column="STATUS_DMT_CD" property="statusDmtCd"/>
+		<result column="STATUS_DMT_NM" property="statusDmtNm"/>
+	</resultMap>
+   	<select id="getStatusModel" resultMap="StatusModel" parameterType="map">
+        SELECT
+			STATUS_DMT_CD,
+			STATUS_DMT_NM
+		FROM
+			MAFCDB.DMT_STATUS
+		WHERE STATUS_DMT_CD IN ('ORIGINAL', 'VALID', 'INVALID', 'SENDING')
+    </select>
+
+
+				<!--******************************-->
+				<!--*        SQL STATEMENTS      *-->
+				<!--*     Document  Product      *-->
+				<!--******************************-->
+	<resultMap id="ProductModel" type="DmtProductModel">
+		<result column="PRODUCT_CD" property="productCd"/>
+		<result column="PRODUCT_NM" property="productNm"/>
+	</resultMap>
+	<select id="getProductModel" resultMap="ProductModel" parameterType="map">
+		SELECT
+			PRODUCT_CD,
+			PRODUCT_NM
+		FROM
+			MAFCDB.DMT_PRODUCT
+		WHERE 1 = 1
+		<if test="productCd != null and productCd.length() > 0">
+			AND PRODUCT_CD = UPPER(#{productCd})
+		</if>
+    </select>
+
+					<!--******************************-->
+					<!--*        SQL STATEMENTS      *-->
+					<!--*    	 Channel Sales       *-->
+					<!--******************************-->
+	<resultMap id="SaleAccountModel" type="SaleAccountModel">
+		<result column="FULLNAME" property="fullname"/>
+		<result column="ACCOUNTID" property="accountId"/>
+		<result column="BRANCHID" property="branchId"/>
+		<result column="DEPARTMENTID" property="departmentId"/>
+		<result column="SALE_CHANNEL" property="salesChnl"/>
+		<result column="FULLNAME" property="saleNm"/>
+		<result column="SUPERVISORID" property="supervisorid"/>
+	</resultMap>
+
+    <select id="getSaleAccountModel" resultMap="SaleAccountModel" parameterType="String">
+		SELECT
+
+			sale.ACCOUNTID,
+			sale.DEPARTMENT_ID,
+			dept.NAME as SALE_CHANNEL
+		FROM
+			MAACC.ACCOUNTINFO sale INNER JOIN MAACC.DEPARTMENT dept
+		ON sale.DEPARTMENT_ID = dept.DEPARTMENT_ID
+		WHERE 1 = 1
+		<if test="accountId != null and accountId.length() > 0">
+			AND sale.ACCOUNTID = UPPER(#{accountId})
+		</if>
+		<if test="department != null and department.length() > 0">
+			AND sale.DEPARTMENT_ID = UPPER(#{department})
+		</if>
+    </select>
+
+	<select id="getSaleAccountModelByDM" resultMap="SaleAccountModel" parameterType="String">
+		SELECT
+			NAME SALE_CHANNEL,
+			DEPARTMENT_ID DEPARTMENTID
+		FROM
+			MAACC.DEPARTMENT
+		WHERE DEPARTMENT_ID = UPPER(#{department})
+	</select>
+
+
+	<select id="checkSaleCode" resultMap="SaleAccountModel" parameterType="String">
+		SELECT
+			*
+		FROM
+			MAACC.ACCOUNTINFO
+		WHERE UPPER(ACCOUNTID) = UPPER(#{salesCd})
+		AND UPPER(DEPARTMENT_ID) = UPPER(#{department})
+	</select>
+	<select id="check" parameterType="String" resultMap="DocumentModel">
+		SELECT
+			DMT.DOCUMENT_CD,
+			DMT.ID_NO,
+			DMT.STATUS_DATE_CURRENT,
+			DMT.STATUS_CD,
+			(
+			SELECT STT.CREATED_DATE
+			FROM DMT_DOCUMENTS_STATUS STT
+			WHERE STT.STATUS_CD ='RECEIVED' AND DMT.DOCUMENT_CD = STT.DOCUMENT_CD
+			ORDER BY STT.CREATED_DATE DESC FETCH FIRST 1 ROWS ONLY
+			) RECEIVED_DATE1
+		FROM
+			DMT_DOCUMENTS DMT
+		WHERE DMT.ID_NO = #{idOrPhone}
+			AND DMT.STATUS_CD NOT IN ('ORIGINAL','INVALID')
+		ORDER BY DMT.CREATED_DATE DESC FETCH FIRST 1 ROWS ONLY
+	</select>
+
+	<select id="retrieveNameSaleById" resultType="SaleAccountModel">
+		SELECT FULLNAME , DEPARTMENTID, SUPERVISORID
+		FROM MAACC."${table}"
+		WHERE ACCOUNTID = #{saleCd}
+	</select>
+
+</mapper>

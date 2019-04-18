@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dou.document.mappers.ITraInfoMapper">
+
+    <!--******************************-->
+    <!--*        SQL STATEMENTS       *-->
+    <!--*     Tracking Information    *-->
+    <!--******************************-->
+    <resultMap id="SearchDefaultTraInfo" type="TraInfoModel">
+        <result column="DOCUMENT_CD" property="documentCd"/>
+        <result column="ID_NO" property="idNo"/>
+        <result column="PRODUCT_ID" property="productId"/>
+        <result column="PRODUCT_NAME" property="productNm"/>
+        <result column="MANAGER" property="manager"/>
+        <result column="SALES_CHANNEL" property="salesChnl"/>
+        <result column="RETRIEVAL_CSR" property="retrievalCsr"/>
+        <result column="DISTRIBUTE_CSR" property="distributeCsr"/>
+        <result column="DESCRIPTION" property="description"/>
+        <result column="BRANCH_ID" property="branchId"/>
+        <result column="BRANCH_NAME" property="branchNm"/>
+        <result column="NOTE_BPO" property="noteBpo"/>
+        <result column="SALES_CODE" property="salesCd"/>
+        <result column="SALES_NAME" property="salesNm"/>
+        <result column="CUSTOMER_NAME" property="customerNm"/>
+        <result column="PARTNER" property="partner"/>
+        <result column="BPO_CHECK" property="bpoCheck"/>
+        <result column="CREATED_BY" property="createdBy"/>
+        <result column="RECEIVE_BY" property="receivedBy"/>
+        <result column="MODIFIED_BY" property="modifiedBy"/>
+        <result column="CREATED_DATE" property="createdDate"/>
+        <result column="MODIFIED_DATE" property="modifiedDate"/>
+        <result column="STATUS_CD" property="statusCd"/>
+        <result column="STATUS_NM" property="statusNm"/>
+        <result column="SEND_DATE" property="sendDate"/>
+        <result column="DISTRIBUTED_DATE" property="distributedDate"/>
+        <result column="DEADLINE" property="deadline"/>
+        <result column="CHANNEL_ID" property="channelId"/>
+        <result column="APP_ID" property="appId"/>
+    </resultMap>
+    <select id="searchMatching" resultMap="SearchDefaultTraInfo" parameterType="DocumentFilterReqObject">
+        WITH
+            DISTRI AS (SELECT DOCUMENT_CD, STATUS_CD, CREATED_DATE
+                    FROM MAFCDB.DMT_DOCUMENTS_STATUS
+                    WHERE STATUS_CD = 'DISTRIBUTED'
+                    <if test="distributedDate != null">
+                        AND DATE(CREATED_DATE) =  DATE(#{distributedDate})
+                    </if>
+                    ),
+            SENDING AS (SELECT DOCUMENT_CD, STATUS_CD, CREATED_DATE
+                    FROM MAFCDB.DMT_DOCUMENTS_STATUS
+                    WHERE STATUS_CD = 'SENDING'
+                    <if test="sendingDate != null">
+                        AND DATE(CREATED_DATE) =  DATE(#{sendingDate})
+                    </if>
+                    )
+        SELECT DMT.*,
+                DMT_ST.STATUS_DMT_NM STATUS_NM,
+                SENDING.CREATED_DATE SEND_DATE,
+                DISTRI.CREATED_DATE DISTRIBUTED_DATE
+        FROM
+            DMT_STATUS DMT_ST,
+            MAFCDB.DMT_DOCUMENTS DMT
+                LEFT JOIN SENDING SENDING ON SENDING.DOCUMENT_CD = DMT.DOCUMENT_CD
+                LEFT JOIN DISTRI DISTRI ON SENDING.DOCUMENT_CD = DISTRI.DOCUMENT_CD
+        WHERE 1=1
+        AND DMT.STATUS_CD = DMT_ST.STATUS_DMT_CD
+        AND DMT.STATUS_CD NOT IN ('ORIGINAL','VALID','INVALID')
+        <if test="idNo != null" >
+            AND DMT.ID_NO = #{idNo}
+        </if>
+        <if test="bpoChecking != null">
+            AND DMT.BPO_CHECK = #{bpoChecking}
+        </if>
+        <if test="departmentCd != null">
+            AND DMT.CHANNEL_ID = #{departmentCd}
+        </if>
+        <if test="statusCd != null">
+            AND DMT.STATUS_CD = #{statusCd}
+        </if>
+        <if test="saleCd != null">
+            AND DMT.SALES_CODE = #{saleCd}
+        </if>
+        <if test="distributedDate != null">
+            AND DATE(DISTRI.CREATED_DATE) =  DATE(#{distributedDate})
+        </if>
+        <if test="sendingDate != null">
+            AND DATE(SENDING.CREATED_DATE) =  DATE(#{sendingDate})
+        </if>
+
+        <!--Author-->
+        <if test="filtering != null">
+            <choose>
+                <when test="filtering.author == 'ADMIN_CSR'">
+                    <if test="filtering.branchSip != null">
+                        AND ( DMT.BRANCH_ID = #{filtering.branchSip})
+                        <!--OR ( DMT.SALES_CODE = #{filtering.accountId} OR   PARTNER = 1))-->
+                    </if>
+                </when>
+
+                <when test="filtering.author == 'ADMIN_CHANNEL_SALES'">
+                    AND DMT.CHANNEL_ID = #{filtering.departmentId}
+                </when>
+
+                <when test="filtering.author == 'USER_OF_MANAGER_LEVEL'">
+                    <if test="filtering.lsBranchSip != null">
+                        AND  DMT.BRANCH_ID IN
+                        <foreach item="items" index="index" collection="filtering.lsBranchSip" open="(" separator="," close=")">
+                            #{items}
+                        </foreach>
+                    </if>
+                </when>
+
+                <when test="filtering.author == 'USER_OF_CHANNEL_SALES'">
+                    <if test="filtering.lsAcc != null">
+                        AND DMT.SALES_CODE IN
+                        <foreach item="items" index="index" collection="filtering.lsAcc" open="(" separator="," close=")">
+                            #{items}
+                        </foreach>
+                    </if>
+                </when>
+
+                <when test="filtering.author == 'USER_OF_CSR'">
+                    AND (
+                        <if test="filtering.lsAcc != null">
+                            DMT.DISTRIBUTE_CSR IN
+                            <foreach item="items" index="index" collection="filtering.lsAcc" open="(" separator="," close=")">
+                                #{items}
+                            </foreach>
+                            OR
+                        </if>
+                        DMT.SALES_CODE = #{filtering.accountId}
+                        OR PARTNER = 1
+                    )
+                </when>
+            </choose>
+        </if>
+    </select>
+
+    <select id="checkDocumentByIdNo" resultMap="SearchDefaultTraInfo" parameterType="String">
+        SELECT
+            *
+        FROM
+            MAFCDB.DMT_DOCUMENTS
+        WHERE ID_NO = #{idNo}
+        AND STATUS_CD NOT IN('PASS','CANCEL_AUTO','CANCEL_STEP_RECEIVED','CANCEL_STEP_PASS','CANCEL')
+    </select>
+    <select id="checkDocumentPass" resultMap="SearchDefaultTraInfo" parameterType="String">
+        SELECT
+            DMT.*,
+            DMT_ST.STATUS_DMT_NM STATUS_NM
+        FROM
+            DMT_STATUS DMT_ST,
+            MAFCDB.DMT_DOCUMENTS DMT
+        WHERE 1 = 1
+        AND DMT.STATUS_CD = DMT_ST.STATUS_DMT_CD
+        AND DMT.STATUS_CD IN ('PASS')
+        AND DMT.ID_NO = UPPER(#{idNo})
+    </select>
+
+    <select id="loadDocuments" resultMap="SearchDefaultTraInfo" parameterType="String">
+        WITH
+            DISTRI AS (SELECT DOCUMENT_CD, STATUS_CD, CREATED_DATE
+                        FROM MAFCDB.DMT_DOCUMENTS_STATUS
+                        WHERE STATUS_CD = 'DISTRIBUTED'
+                        <if test="documentCd != null">
+                            AND DOCUMENT_CD = #{documentCd}
+                        </if>
+            ),
+            SENDING AS (SELECT DOCUMENT_CD, STATUS_CD, CREATED_DATE
+                        FROM MAFCDB.DMT_DOCUMENTS_STATUS
+                        WHERE STATUS_CD = 'SENDING'
+                        <if test="documentCd != null">
+                            AND DOCUMENT_CD = #{documentCd}
+                        </if>
+            )
+        SELECT DMT.*,
+            DMT_ST.STATUS_DMT_NM STATUS_NM,
+            SENDING.CREATED_DATE SEND_DATE,
+            DISTRI.CREATED_DATE DISTRIBUTED_DATE
+        FROM
+            DMT_STATUS DMT_ST,
+            MAFCDB.DMT_DOCUMENTS DMT,
+            SENDING SENDING,
+            DISTRI DISTRI
+        WHERE 1=1
+        AND DMT.STATUS_CD = DMT_ST.STATUS_DMT_CD
+        AND SENDING.DOCUMENT_CD = DMT.DOCUMENT_CD
+        AND DISTRI.DOCUMENT_CD = DMT.DOCUMENT_CD
+        AND DMT.STATUS_CD NOT IN ('ORIGINAL','VALID','INVALID')
+        <if test="documentCd != null">
+            AND DMT.DOCUMENT_CD = #{documentCd}
+        </if>
+    </select>
+
+    <update id="addAppID" parameterType="String">
+        UPDATE
+            MAFCDB.DMT_DOCUMENTS
+        SET
+            APP_ID = #{appID}
+        WHERE DOCUMENT_CD = #{documentCd}
+    </update>
+
+    <!--******************************-->
+    <!--*        SQL STATEMENTS       *-->
+    <!--*     Tracking Information    *-->
+    <!--*         History Status      *-->
+    <!--******************************-->
+
+    <resultMap id="searchHistoryStatus" type="DMTHistoryStatusModel">
+        <result column="ID" property="id"/>
+        <result column="DOCUMENT_CD" property="documentCd"/>
+        <result column="DESCRIPTION" property="description"/>
+        <result column="CREATED_BY" property="createdBy"/>
+        <result column="CREATED_DATE" property="createdDate"/>
+        <result column="STATUS_CD" property="statusCd"/>
+        <result column="FILE_NAME" property="fileName"/>
+    </resultMap>
+    <select id="getHistoryStatus" resultMap="searchHistoryStatus" parameterType="String">
+        SELECT
+            ID,
+            DOCUMENT_CD,
+            STATUS_CD,
+            CREATED_DATE,
+            DESCRIPTION,
+            FILE_NAME
+        FROM MAFCDB.DMT_DOCUMENTS_STATUS
+        WHERE 1 = 1
+        <if test="documentNo != null">
+            AND DOCUMENT_CD = #{documentNo}
+        </if>
+        ORDER BY ID DESC
+    </select>
+
+    <insert id="addDefersStatusHistory" parameterType="DMTHistoryStatusModel">
+        INSERT INTO MAFCDB.DMT_DOCUMENTS_STATUS
+        (
+        DESCRIPTION,
+        CREATED_BY,
+        CREATED_DATE,
+        STATUS_CD,
+        DOCUMENT_CD
+        )
+        VALUES(
+        <if test="description != null">
+            #{description},
+        </if>
+        <if test="createdBy != null">
+            #{createdBy},
+        </if>
+        <if test="createdDate != null">
+            #{createdDate},
+        </if>
+        <if test="statusDmtCd != null">
+            #{statusCd},
+        </if>
+        <if test="documentCd != null">
+            #{documentCd}
+        </if>
+        )
+    </insert>
+
+    <insert id="addStatusHistory" parameterType="DMTHistoryStatusModel" >
+        INSERT INTO MAFCDB.DMT_DOCUMENTS_STATUS
+            ( DOCUMENT_CD,
+            STATUS_CD,
+            FILE_NAME,
+            DESCRIPTION,
+            CREATED_BY,
+            CREATED_DATE)
+        VALUES(
+            #{documentCd},
+            #{statusCd},
+            #{fileName},
+            #{description},
+            #{createdBy},
+            #{createdDate}
+        )
+    </insert>
+
+    <!--******************************-->
+    <!--*        SQL STATEMENTS       *-->
+    <!--*     Tracking Information    *-->
+    <!--*        Sale Channel       *-->
+    <!--******************************-->
+    <resultMap id="loadChannelCode" type="ChannelCodeModel">
+        <result column="DEPARTMENT_ID" property="departmentCd"/>
+        <result column="NAME" property="departmentNm"/>
+        <result column="STATUS_DMT_CD" property="statusCd"/>
+        <result column="STATUS_DMT_NM" property="statusNm"/>
+    </resultMap>
+    <select id="loadChannelCodeDefault" resultMap="loadChannelCode">
+        SELECT
+        DEPARTMENT_ID, NAME
+        FROM
+        MAACC.DEPARTMENT
+    </select>
+
+    <select id="loadStatusCodeDefault" resultMap="loadChannelCode" parameterType="List" >
+        SELECT
+        STATUS_DMT_CD,
+        STATUS_DMT_NM
+        FROM
+        MAFCDB.DMT_STATUS
+        <trim prefix="WHERE" prefixOverrides="AND">
+            <foreach collection="acceptStatus" item="status" separator="AND">
+                STATUS_DMT_CD != #{status}
+            </foreach>
+        </trim>
+    </select>
+
+    <!--******************************-->
+    <!--*        SQL STATEMENTS       *-->
+    <!--*     Tracking Information    *-->
+    <!--*        Defer History        *-->
+    <!--******************************-->
+    <resultMap id="listDeferHistory" type="DMTDeferDetailModel">
+        <result column="ID"               property="id"/>
+        <result column="DOCUMENT_CD"      property="documentCd"/>
+        <result column="GROUP_CD"         property="groupCd"/>
+        <result column="DEFER_CD"         property="deferCd"/>
+        <result column="DEFER_NAME"       property="deferNm"/>
+        <result column="DESCRIPTION"      property="description"/>
+        <result column="CREATED_DATE"     property="createdDate"/>
+        <result column="IS_DEFER_CHECK"    property="deferCheck"/>
+
+    </resultMap>
+
+    <insert id="addDefersForDocument" parameterType="List">
+        INSERT INTO MAFCDB.DMT_DOCUMENTS_DEFER (
+        DOCUMENT_CD,
+        GROUP_CD,
+        DEFER_CD,
+        DESCRIPTION,
+        CREATED_DATE
+        ) VALUES
+        <foreach collection="list" item="defer" separator=",">
+            (
+            #{defer.documentCd},
+            #{defer.groupCd},
+            #{defer.deferCd},
+            #{defer.description},
+            #{defer.createdDate}
+            )
+        </foreach>
+    </insert>
+
+    <update id="updateDefersForDocument" parameterType="DMTDeferDetailModel">
+        UPDATE
+        MAFCDB.DMT_DOCUMENTS_DEFER
+            SET
+                DESCRIPTION =  #{description},
+                MODIFIED_DATE = #{modifiedDate},
+                IS_DEFER_CHECK = #{deferCheck}
+            WHERE    1  =  1
+            AND      ID =  #{id}
+    </update>
+
+    <select id="loadDeferHistoryByIdNo" resultMap="listDeferHistory" parameterType="String">
+        SELECT
+            DDD.ID,
+            DDD.DOCUMENT_CD,
+            DDD.DEFER_CD,
+            DDD.GROUP_CD,
+            DF.DEFER_NAME,
+            DDD.DESCRIPTION,
+            DDD.CREATED_DATE,
+            DDD.IS_DEFER_CHECK
+        FROM
+            DMT_DOCUMENTS DMT,
+            DMT_DOCUMENTS_DEFER DDD,
+            DMT_DEFER DF
+        WHERE 1=1
+        AND DF.DEFER_CODE = DDD.DEFER_CD
+        AND DDD.GROUP_CD = DF.GROUP_DEFER_CODE
+        AND DMT.STATUS_CD IN ('DEFER','MODIFIED','PASS','CANCEL','CANCEL_STEP_PASS')
+        AND DMT.DOCUMENT_CD = DDD.DOCUMENT_CD
+        <if test="documentNo != null">
+            AND DDD.DOCUMENT_CD =#{documentNo}
+        </if>
+        ORDER BY ID DESC
+    </select>
+</mapper>

@@ -1,0 +1,16 @@
+{
+  "name": "Document Management Tool",
+  "short_name": "document-management-tool",
+  "icons": [],
+  "start_url": "/",
+  "orientation": "portrait",
+  "background_color": "#f1f1f1",
+  "theme_color": "#00695c",
+
+  "permissions": [
+    "tabs",
+    "bookmarks",
+    "clipboardRead",
+    "clipboardWrite"
+  ]
+}

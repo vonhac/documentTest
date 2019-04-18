@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dou.document.mappers.NotificationMapper">
+
+    <select id="fetchNotify" resultType="NotifyModel">
+        SELECT
+            ID,
+            USER_ID user,
+            DOCUMENT_CD documentCd,
+            ID_NO idNo,
+            MESSAGE message,
+            IS_READ isRead,
+            CREATED_DATE createdDate,
+            READ_DATE readDate
+        FROM MAFCDB.DMT_NOTIFICATIONS
+        WHERE USER_ID = #{user}
+        ORDER BY CREATED_DATE DESC
+        LIMIT #{pageSize}
+        OFFSET #{startIndex}
+    </select>
+
+    <select id="retrieveUnread" resultType="NotifyModel">
+        SELECT
+            ID,
+            USER_ID user,
+            DOCUMENT_CD documentCd,
+            ID_NO idNo,
+            MESSAGE message,
+            IS_READ isRead,
+            CREATED_DATE createdDate,
+            READ_DATE readDate
+        FROM MAFCDB.DMT_NOTIFICATIONS
+        WHERE USER_ID = #{user} AND IS_READ = 0
+        ORDER BY CREATED_DATE DESC
+    </select>
+
+    <update id="changeReadState">
+        UPDATE MAFCDB.DMT_NOTIFICATIONS
+        SET
+            IS_READ = 1,
+            READ_DATE = CURRENT TIMESTAMP
+        WHERE ID = #{id} AND USER_ID = #{user}
+    </update>
+
+    <update id="changeAllMessageState">
+        UPDATE MAFCDB.DMT_NOTIFICATIONS
+        SET
+            IS_READ = 1,
+            READ_DATE = CURRENT TIMESTAMP
+        WHERE USER_ID = #{user} AND IS_READ = 0
+    </update>
+</mapper>

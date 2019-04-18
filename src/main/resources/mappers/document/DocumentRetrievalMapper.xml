@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dou.document.mappers.DocumentRetrievalMapper">
+    <resultMap id="DocumentModel" type="TraInfoModel">
+        <result column="DOCUMENT_CD" property="documentCd"/>
+        <result column="ID_NO" property="idNo"/>
+        <result column="CUSTOMER_ID" property="customerId"/>
+        <result column="CUSTOMER_NAME" property="customerNm"/>
+        <result column="PRODUCT_ID" property="productId"/>
+        <result column="PRODUCT_NAME" property="productNm"/>
+        <result column="MANAGER" property="manager"/>
+        <result column="SALES_CODE" property="salesCd"/>
+        <result column="SALES_NAME" property="salesNm"/>
+        <result column="SALES_CHANNEL" property="salesChnl"/>
+        <result column="DISTRIBUTE_CSR" property="distributeCsr"/>
+        <result column="INVALID_DESCRIPTION" property="invalidDescription"/>
+        <result column="TYPE" property="type"/>
+        <result column="STATUS" property="status"/>
+        <result column="STATUS_CD" property="statusCd"/>
+        <result column="STATUS_DATE_CURRENT" property="statusDateCurrent"/>
+        <result column="CSR_CODE" property="csr_code"/>
+        <result column="SEND_DATE" property="send_date"/>
+        <result column="DISTRIBUTED_DATE" property="distributedDate"/>
+        <result column="BRANCH_ID" property="branchId"/>
+        <result column="BRANCH_NAME" property="branchNm"/>
+        <result column="RETRIEVAL_CSR" property="retrievalCsr"/>
+        <result column="NOTE_BPO" property="noteBpo"/>
+        <result column="CREATED_BY" property="createdBy"/>
+        <result column="RECEIVE_BY" property="receivedBy"/>
+        <result column="MODIFIED_BY" property="modifiedBy"/>
+        <result column="CREATED_DATE" property="createdDate"/>
+        <result column="MODIFIED_DATE" property="modifiedDate"/>
+        <result column="RECEIVED_DATE" property="receivedDate"/>
+        <result column="RECEIVED_DATE1" property="receivedDate1"/>
+        <result column="PARTNER" property="partner"/>
+        <result column="BPO_CHECK" property="bpoCheck"/>
+        <result column="IS_DELETED" property="isDeleted"/>
+        <result column="DEADLINE" property="deadline"/>
+    </resultMap>
+
+    <resultMap id="CsrModel" type="CsrModel">
+        <result column="FULLNAME" property="fullname"/>
+        <result column="ACCOUNTID" property="accountId"/>
+        <result column="SALE_CHANNEL" property="salesChnl"/>
+        <result column="BRANCH_NAME" property="branchNm"/>
+        <result column="count" property="count"/>
+        <result column="DOC_NO" property="docNo"/>
+    </resultMap>
+    
+    <resultMap id="StatusModel" type="DocumentStatusModel">
+		<result column="STATUS_DMT_CD" property="statusDmtCd"/>
+        <result column="STATUS_DMT_NM" property="statusDmtNm"/>
+    </resultMap>
+    
+    <select id="searchRetrievalDocument" resultMap="DocumentModel" parameterType="map">
+      SELECT
+			*,
+			(SELECT status.STATUS_DMT_NM
+			FROM MAFCDB.DMT_STATUS status
+			WHERE status.STATUS_DMT_CD = docmt.STATUS_CD) as STATUS,
+  			(CASE
+          		WHEN STATUS_CD = 'INVALID' THEN (SELECT docstatus.DESCRIPTION
+														FROM MAFCDB.DMT_DOCUMENTS_STATUS docstatus INNER JOIN MAFCDB.DMT_STATUS status
+														ON  docstatus.STATUS_CD = status.STATUS_DMT_CD
+														WHERE docstatus.DOCUMENT_CD = docmt.DOCUMENT_CD
+														ORDER BY docstatus.CREATED_DATE DESC
+											  			FETCH FIRST 1 ROWS ONLY)
+				ELSE ''
+				END) as INVALID_DESCRIPTION,
+			(CASE WHEN STATUS_CD = 'RECEIVED' THEN STATUS_DATE_CURRENT
+	          ELSE null
+	         END) as RECEIVED_DATE,
+	        (CASE WHEN STATUS_CD = 'CANCELSTEPRECEIVE' THEN STATUS_DATE_CURRENT
+	          ELSE null
+	         END) as CANCEL_STEP_RECEIVE_DATE,
+	        (CASE WHEN STATUS_CD = 'SENDING' THEN STATUS_DATE_CURRENT
+	          ELSE null
+	        END) as SEND_DATE,
+			(CASE WHEN STATUS_CD = 'DISTRIBUTED' THEN STATUS_DATE_CURRENT
+			  ELSE null
+			END) as DISTRIBUTED_DATE,
+            STATUS_DATE_CURRENT
+		FROM
+			MAFCDB.DMT_DOCUMENTS docmt
+		WHERE 1 = 1
+        AND BRANCH_ID = #{filtering.branchSip}
+		<if test="status != null and status.length() > 0">
+			AND STATUS_CD = #{status} 
+		</if>
+		<if test="status == null or status.length() == 0">
+			AND STATUS_CD IN ('DISTRIBUTED', 'MODIFIED') 
+		</if>
+		<if test="status != null and status.length() > 0 and distributeDate != null and distributeDate.length() > 0">
+			AND DATE(STATUS_DATE_CURRENT) =  Date(To_Date(#{distributeDate}, 'DD/MM/YYYY'))
+		</if>
+		<if test="distributeCsr != null and distributeCsr.length() > 0">
+			AND DISTRIBUTE_CSR = #{distributeCsr}
+		</if>
+
+    </select>
+    
+    <select id="getStatusModel" resultMap="StatusModel" parameterType="map">
+        SELECT
+			STATUS_DMT_CD,
+			STATUS_DMT_NM
+		FROM
+			MAFCDB.DMT_STATUS
+		WHERE STATUS_DMT_CD IN ('DISTRIBUTED', 'MODIFIED')
+    </select>
+</mapper>

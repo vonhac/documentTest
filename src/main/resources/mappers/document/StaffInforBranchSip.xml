@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dou.document.mappers.StaffInforBranchSipMapper">
+    <resultMap id="ViewAll" type="StaffInforBranchSip">
+        <result column="STAFF_CD" property="staffCd"/>
+        <result column="STAFF_NM" property="staffNm"/>
+        <result column="NAME" property="branchSip"/>
+        <result column="BRANCH_ID" property="branchSipId"/>
+        <result column="ID" property="IdStaffBranch"/>
+    </resultMap>
+
+    <insert id="saveAdd" parameterType="StaffInforBranchSip" keyProperty="IdStaffBranch" keyColumn="ID">
+        INSERT INTO MAFCDB.DMT_STAFF_BRANCHSIP
+        (STAFF_CD, STAFF_NM, BRANCHSIP_CD, CREATED_DT, CREATED_BY)
+        VALUES
+        (upper(#{staffCd}), #{staffNm}, #{branchSipId}, Timestamp(#{createdDate}), #{createdBy})
+    </insert>
+
+    <update id="updateData" parameterType="StaffInforBranchSip">
+        update MAFCDB.DMT_STAFF_BRANCHSIP
+        set
+        <if test="staffCd != null">
+            STAFF_CD = upper(#{staffCd})
+        </if>
+        <if test="staffNm != null">
+            ,STAFF_NM = #{staffNm}
+        </if>
+        <if test="branchSip != null">
+            ,BRANCHSIP_CD = #{branchSipId}
+        </if>
+        ,MODIFIED_DT = Timestamp(#{modifiedDate})
+        ,MODIFIED_BY = #{modifiedBy}
+        where 1 = 1
+            AND ID = #{IdStaffBranch}
+    </update>
+
+    <select id="getDataStaffBranchSipByFilterCondition" parameterType="String" resultMap="ViewAll" >
+        SELECT
+             STF.ID
+            ,STF.STAFF_CD
+            ,STF.STAFF_NM
+            ,BR.NAME, BR.BRANCH_ID
+        FROM
+            MAFCDB.DMT_STAFF_BRANCHSIP STF
+            ,MAACC.BRANCH BR
+        WHERE 1=1
+        AND BR.BRANCH_ID(+) = STF.BRANCHSIP_CD
+        <if test="staffCd != null">
+            <bind name="pattern" value="'%' + staffCd + '%'" />
+            AND upper(STF.STAFF_CD) like upper(#{pattern})
+        </if>
+    </select>
+
+    <delete id="deletebranchsip" parameterType="java.util.List">
+        DELETE FROM MAFCDB.DMT_STAFF_BRANCHSIP
+        <trim prefix="WHERE" prefixOverrides="AND | OR">
+            ID IN
+            <foreach item="item" index="index" collection="list"
+                     open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </trim>
+    </delete>
+
+    <resultMap id="branchSip" type="branchsip">
+        <result column="BRANCH_ID" property="branchId"/>
+        <result column="NAME" property="brachNml"/>
+    </resultMap>
+    <select id="getBranchSip" resultMap="branchSip">
+        select BRANCH_ID,NAME from MAACC.BRANCH where 1 = 1 order by NAME asc
+    </select>
+
+    <select id="checkDuplicatedBranSip"  parameterType="string" resultType="string" statementType="CALLABLE">
+        SELECT BRANCHSIP_CD
+        FROM MAFCDB.DMT_STAFF_BRANCHSIP
+        WHERE 1 = 1
+        <if test="branchSip != null">
+            AND BRANCHSIP_CD = #{branchSip}
+        </if>
+    </select>
+    <select id="checkAccountCSR" resultType="java.lang.Boolean">
+        SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END AS CSRAccount
+        FROM MAACC.ACCOUNTINFO
+        WHERE 1=1 AND ACCOUNTID = upper(#{userAccount})
+        AND DEPARTMENT_ID in ('DM05','DM10')
+    </select>
+</mapper>

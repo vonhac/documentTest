@@ -1,0 +1,8 @@
+export const UNREAD_NOTIFY = 'UNREAD_NOTIFY';
+export const ALL_NOTIFY = 'ALL_NOTIFY';
+
+export const SHOW_DRAWER = 'SHOW_DRAWER';
+export const POSITION_FETCHING = 'POSITION_FETCHING';
+export const STOP_FETCHING = 'STOP_FETCHING';
+
+export const SEARCHING_VALUE = 'SEARCHING_VALUE';

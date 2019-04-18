@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dou.document.mappers.IDMTGroupDeferMapper">
+<resultMap id="loadDataDeferDefault" type="DMTGroupDeferModel">
+    <result column="ID"                 property="id"></result>
+    <result column="GROUP_CODE"         property="groupCd"></result>
+    <result column="GROUP_NAME"         property="groupNm"></result>
+    <result column="DESCRIPTION"        property="description"></result>
+    <result column="CREATED_BY"         property="createdBy"></result>
+    <result column="MODIFIED_BY"        property="modifiedBy"></result>
+    <result column="CREATED_DATE"       property="createdDate"></result>
+    <result column="MODIFIED_DATE"      property="modifiedDate"></result>
+</resultMap>
+    <select id="loadDataDefault" resultMap="loadDataDeferDefault" parameterType="String">
+        SELECT *
+        FROM MAFCDB.DMT_GROUP_DEFER
+        WHERE 1=1
+        <if test="groupCd != null">
+            AND GROUP_CODE = #{groupCd}
+        </if>
+
+    </select>
+
+    <insert id="addDataDeferGroup" parameterType="DMTGroupDeferModel" keyColumn="ID" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO MAFCDB.DMT_GROUP_DEFER
+        (
+            GROUP_CODE,
+            GROUP_NAME,
+            CREATED_BY,
+            CREATED_DATE
+        )
+        VALUES
+        (
+            #{groupCd},
+            #{groupNm},
+            #{createdBy},
+            TIMESTAMP(#{createdDate})
+        )
+    </insert>
+    <update id="editDataDeferGroup" parameterType="DMTGroupDeferModel" >
+        UPDATE
+        MAFCDB.DMT_GROUP_DEFER
+        SET
+        GROUP_CODE      = #{groupCd},
+        GROUP_NAME      = #{groupNm},
+        MODIFIED_BY     = #{modifiedBy},
+        MODIFIED_DATE   =  TIMESTAMP(#{modifiedDate})
+        WHERE ID = #{id}
+    </update>
+
+    <delete id="delDataDeferGroup" parameterType="String">
+        DELETE FROM MAFCDB.DMT_GROUP_DEFER
+        WHERE 1=1
+        <if test="groupCd !=null and groupCd.length > 0">
+            AND GROUP_CODE = #{groupCd}
+        </if>
+    </delete>
+
+
+   <resultMap id="loadDeferDetail" type="DMTDeferDetailModel" >
+       <result column="ID"                 property="id"></result>
+       <result column="GROUP_DEFER_CODE"   property="groupCd"></result>
+       <result column="DEFER_CODE"         property="deferCd"></result>
+       <result column="DEFER_NAME"         property="deferNm"></result>
+       <result column="DESCRIPTION"        property="description"></result>
+       <result column="CREATED_BY"         property="createdBy"></result>
+       <result column="MODIFIED_BY"        property="modifiedBy"></result>
+       <result column="CREATED_DATE"       property="createdDate"></result>
+       <result column="MODIFIED_DATE"      property="modifiedDate"></result>
+   </resultMap>
+    
+    <select id="searchDeferDetail" parameterType="String" resultMap="loadDeferDetail">
+        SELECT
+            *
+        FROM
+            MAFCDB.DMT_DEFER
+        WHERE
+            1 = 1
+        AND GROUP_DEFER_CODE = #{groupCd}
+        <if test="deferCd != null and deferCd.length > 0">
+            AND DEFER_CODE = UPPER(#{deferCd})
+        </if>
+    </select>
+    
+    <select id="loadDeferDetailDefault" resultMap="loadDataDeferDefault">
+        SELECT
+            GROUP_CODE,
+            GROUP_NAME
+        FROM
+            MAFCDB.DMT_GROUP_DEFER
+    </select>
+
+    <select id="searchDeferDetailByGroupCd" resultMap="loadDeferDetail" parameterType="DMTDeferDetailModel">
+        SELECT
+            *
+        FROM
+            MAFCDB.DMT_DEFER
+        WHERE
+            1=1
+        <if test="groupCd != null">
+            AND GROUP_DEFER_CODE = #{groupCd}
+        </if>
+        <if test="deferNm != null">
+            AND DEFER_NAME = #{deferNm}
+        </if>
+    </select>
+
+    <insert id="addDataDeferDetail" parameterType="DMTDeferDetailModel">
+        INSERT INTO MAFCDB.DMT_DEFER
+        (GROUP_DEFER_CODE,
+        DEFER_CODE,
+        DEFER_NAME,
+        CREATED_BY,
+        CREATED_DATE)
+        VALUES
+        ( #{groupCd}, #{deferCd}, #{deferNm}, #{createdBy}, TIMESTAMP(#{createdDate}))
+    </insert>
+
+    <update id="editDataDeferDetail" parameterType="DMTDeferDetailModel">
+        UPDATE	MAFCDB.DMT_DEFER
+        SET
+        GROUP_DEFER_CODE = #{groupCd} ,
+        DEFER_CODE = #{deferCd},
+        DEFER_NAME = #{deferNm},
+        MODIFIED_BY = #{modifiedBy},
+        MODIFIED_DATE = TIMESTAMP(#{modifiedDate})
+        WHERE ID = #{id}
+    </update>
+    <delete id="delDataDeferDetail" parameterType="String">
+        DELETE FROM
+            MAFCDB.DMT_DEFER
+        WHERE 1 = 1
+        <if test="groupCd !=null and groupCd.length > 0">
+            AND GROUP_DEFER_CODE = #{groupCd}
+        </if>
+        <if test="deferCd !=null and deferCd.length > 0">
+            AND DEFER_CODE = #{deferCd}
+        </if>
+    </delete>
+</mapper>

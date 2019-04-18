@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dou.document.mappers.ParameterMapper">
+
+    <select id="getAllParams" resultType="ParameterModel">
+        SELECT
+            ID id,
+            PARAM_CD paramCd,
+            PARAM_NM paramNm,
+            DESCRIPTION description,
+            UNIT_TYPE unit,
+            PARAM_VALUE value,
+            MODIFIED_DATE modifiedDate
+        FROM MAFCDB.DMT_PARAMETERS
+    </select>
+
+    <select id="getParam" resultType="ParameterModel">
+        SELECT
+            ID id,
+            PARAM_CD paramCd,
+            PARAM_NM paramNm,
+            DESCRIPTION description,
+            UNIT_TYPE unit,
+            PARAM_VALUE value,
+            MODIFIED_DATE modifiedDate
+        FROM MAFCDB.DMT_PARAMETERS
+        WHERE PARAM_CD = #{paramCd}
+    </select>
+
+    <update id="setParam">
+        UPDATE MAFCDB.DMT_PARAMETERS
+        SET PARAM_VALUE = #{paramVal}
+        WHERE PARAM_CD = #{paramCd}
+    </update>
+
+</mapper>

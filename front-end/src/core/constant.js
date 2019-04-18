@@ -1,0 +1,12 @@
+export const REQUEST_HEADER_AUTH = 'Authorization';
+
+export const LOCAL_STORAGE_EXPIRES_IN = 'DMT_EXPIRES_IN';
+export const LOCAL_STORAGE_LAST_ACCESS = 'DMT_LAST_ACCESS';
+export const LOCAL_STORAGE_ACCESS_TOKEN = 'DMT_ACCESS_TOKEN';
+export const LOCAL_STORAGE_LANG = 'DMT_LANG';
+
+export const STD_DATE_FORMAT = 'DD/MM/YYYY hh:mm:ss A';
+
+export const EXCEL_FILENAMES = {
+  TRACKING_INFO_REPORT: 'TRACKING_INFO_REPORT'
+};

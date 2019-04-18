@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dou.document.mappers.BPODocumentMapper">
+    <resultMap id="documentgetall" type="document">
+        <result column="ID_NO" property="idNo"/>
+        <result column="DOCUMENT_CD" property="documentId"/>
+        <result column="CUSTOMER_NAME" property="customerNm"/>
+        <result column="PRODUCT_NAME" property="productNm"/>
+        <result column="SALES_CODE" property="saleCd"/>
+        <result column="SALES_NAME" property="saleNm"/>
+        <result column="SALES_CHANNEL" property="saleChannel"/>
+        <result column="SENDING_DT" property="sendDt"/>
+        <result column="CREATED_BY" property="dateEmtry"/>
+        <result column="DISTRIBUTED_DT" property="distributeDt"/>
+        <result column="STATUS_CD" property="documentSts"/>
+        <result column="BPO_CHECK" property="bpoCheck"/>
+    </resultMap>
+    <select id="getdata" resultMap="documentgetall"  parameterType="Document">
+        SELECT distinct
+            DCT.DOCUMENT_CD,
+            DCT.ID_NO,
+            DCT.CUSTOMER_NAME,
+            DCT.PRODUCT_NAME,
+            DCT.SALES_CODE,
+            DCT.SALES_NAME,
+            (
+                SELECT DEP.NAME
+                FROM MAACC.DEPARTMENT DEP
+                WHERE DEP.DEPARTMENT_ID = DCT.CHANNEL_ID
+            )SALES_CHANNEL,
+            (
+                SELECT S.CREATED_DATE
+                FROM    DMT_DOCUMENTS_STATUS S
+                WHERE DCT.DOCUMENT_CD = S.DOCUMENT_CD
+                AND S.STATUS_CD = 'SENDING'
+                ORDER BY S.CREATED_DATE DESC
+                FETCH FIRST 1 ROWS ONLY
+            ) SENDING_DT,
+            DCT.CREATED_BY,
+            (
+                SELECT S.CREATED_DATE
+                FROM    DMT_DOCUMENTS_STATUS S
+                WHERE DCT.DOCUMENT_CD = S.DOCUMENT_CD
+                AND S.STATUS_CD = 'DISTRIBUTED'
+                ORDER BY S.CREATED_DATE DESC
+                FETCH FIRST 1 ROWS ONLY
+            ) DISTRIBUTED_DT,
+            (
+                SELECT S.STATUS_CD
+                FROM    DMT_DOCUMENTS_STATUS S
+                WHERE DCT.DOCUMENT_CD = S.DOCUMENT_CD
+                ORDER BY S.CREATED_DATE DESC
+                FETCH FIRST 1 ROWS ONLY
+            ) STATUS_CD,
+            DCT.BPO_CHECK
+        FROM
+            DMT_DOCUMENTS DCT, DMT_DOCUMENTS_STATUS S
+        WHERE S.DOCUMENT_CD (+) = DCT.DOCUMENT_CD
+        AND DCT.STATUS_CD = 'DISTRIBUTED'
+            <!--AND (DCT.DISTRIBUTE_CSR = #{distributedCsr} OR DCT.RETRIEVAL_CSR = #{retrivalCsr})-->
+        <if test="saleCd != null">
+            AND DCT.SALES_CODE like '${"%" + saleCd + "%"}'
+        </if>
+        <if test="saleChannel != null">
+            AND DCT.SALES_CHANNEL = #{saleChannel}
+        </if>
+        <if test="distributeDt != null">
+            AND DATE(S.CREATED_DATE) = DATE(#{distributeDt})
+        </if>
+        <if test="bpoCheck != null">
+            AND DCT.BPO_CHECK = #{bpoCheck}
+        </if>
+    </select>
+
+    <resultMap id="departmentList" type="department">
+        <result column="NAME" property="departmentNm"></result>
+        <result column="DEPARTMENT_ID" property="departmentCd"></result>
+    </resultMap>
+
+    <select id="getdepartment" resultMap="departmentList">
+        SELECT NAME, DEPARTMENT_ID
+        FROM MAACC.DEPARTMENT
+    </select>
+
+    <update id="BPOCheckDocument">
+        UPDATE DMT_DOCUMENTS
+        SET BPO_CHECK = #{check}
+        WHERE 1=1 AND DOCUMENT_CD = #{documentId}
+    </update>
+    <select id="selectDataIsCheck" parameterType="string" resultType="int">
+        SELECT BPO_CHECK FROM DMT_DOCUMENTS
+        WHERE 1=1 AND DOCUMENT_CD = #{documentId}
+    </select>
+</mapper>
